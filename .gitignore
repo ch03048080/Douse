@@ -1,0 +1,8 @@
+/TopdownShootingGame.sln
+/.vs
+/Intermediate
+/Saved
+/Build
+/Binaries
+*.sln
+*_BuiltData.uasset
