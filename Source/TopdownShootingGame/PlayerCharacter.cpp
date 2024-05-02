@@ -9,6 +9,12 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
+#include "MyGameModeBase.h"
+
+#include "Misc/OutputDeviceNull.h" // 실제 출력을 수행하지 않고 로그 메시지 무시 -> 위젯 업데이트 시 사용
+//#include "Engine/GameInstance.h" // UGameInstance 헤더 포함 -> 추후 게임 모드나 게임 인스턴스 클래스로 이동해야하는 기능 -> SetGamePaused().
+#include "Kismet/GameplayStatics.h" // 게임 퍼즈 기능 사용하기 위한 함수
+
 
 // Sets default values
 APlayerCharacter::APlayerCharacter()
@@ -38,7 +44,7 @@ APlayerCharacter::APlayerCharacter()
 	//bUseControllerRotationRoll = false;
 
 	//////////////플레이어 최대 체력 설정 ///////////////////
-	PlayerMaxHealth = 30.0f;
+	PlayerMaxHealth = 50.0f;
 	//플레이어 초기 체력 설정
 	PlayerHealth = PlayerMaxHealth;
 
@@ -133,10 +139,33 @@ APlayerCharacter::APlayerCharacter()
 			// 출력
 			PlayerWidget->AddToViewport();
 			UE_LOG(LogTemp, Warning, TEXT("Player Widget Create!"));
+			//WBP_Player 하위 패널인 WBP_DeathScreen 연결
+			DeathScreenWidget = Cast<UUserWidget>(PlayerWidget->GetWidgetFromName(TEXT("WBP_DeathScreen")));
+			//WBP_Player 하위 패널인 WBP_Leveling 연결
+			LevelingWidget = Cast<UUserWidget>(PlayerWidget->GetWidgetFromName(TEXT("WBP_Leveling")));
+			//WBP_Player 하위 패널인 WBP_TopRightHUD 연결
+			TopRightHUDWidget = Cast<UUserWidget>(PlayerWidget->GetWidgetFromName(TEXT("WBP_TopRightHUD")));
 		}
-		
 	}
-
+	
+	//if (!DeathScreenWidget)// 하위 패널에 대한 액세스가 실패했을 때의 처리
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("Failed to access DeathScreenWidget!"));
+	//}
+	//static ConstructorHelpers::FClassFinder<UUserWidget> DeathScreenWidgetClassFinder(TEXT("/Game/Blueprints/Player/Widgets/WBP_Death_Screen")); 
+	//if (DeathScreenWidgetClassFinder.Succeeded())
+	//{
+	//	DeathScreenWidgetClass = DeathScreenWidgetClassFinder.Class;
+	//	UE_LOG(LogTemp, Warning, TEXT("Death Screen Widget Find!"));
+	//	// 위젯 인스턴스 생성
+	//	DeathScreenWidget = CreateWidget<UUserWidget>(GetWorld(), DeathScreenWidgetClass);
+	//	if (DeathScreenWidget)
+	//	{
+	//		// 출력
+	//		DeathScreenWidget->AddToViewport();
+	//		//UE_LOG(LogTemp, Warning, TEXT("Death Screen Widget Create!"));
+	//	}
+	//}
 	
 }
 
@@ -192,6 +221,180 @@ void APlayerCharacter::Jump()
 	Super::Jump(); //Chracter.h 에 있는 기본 Jump 기능 사용
 	//UE_LOG(LogTemp, Warning, TEXT("Input Jump Action Triggered"));
 }
+
+void APlayerCharacter::StartSelectingSkills()
+{
+	if (GetWorld() != nullptr)
+	{
+		UGameplayStatics::SetGamePaused(GetWorld(), true); // 퍼즈 기능 작동
+
+		if (APlayerController* PlayerController = Cast<APlayerController>(GetController())) //마우스 커서 활성화
+		{
+			if (PlayerController != nullptr)
+			{
+				// 마우스 커서의 가시성 True로 설정
+				PlayerController->bShowMouseCursor = true;
+
+				//Set Movement Mode 설정
+
+				//WBP_Leveling 위젯 보이게끔 Visivle 설정
+				LevelingWidget->SetVisibility(ESlateVisibility::Visible);
+
+				//SetInputModeUIOnly 노드 구현
+				FInputModeUIOnly InputMode;
+				InputMode.SetWidgetToFocus(LevelingWidget->TakeWidget());
+				//마우스를 뷰포트에 고정할건지 자유롭게 놔둘건지 지정 기능
+				//InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+				PlayerController->SetInputMode(InputMode);
+
+			}
+		}
+		
+	}
+
+
+
+}
+
+void APlayerCharacter::ReturnToGame()
+{
+	if (GetWorld() != nullptr)
+	{
+		UGameplayStatics::SetGamePaused(GetWorld(), false); // 퍼즈 기능 해제
+
+		if (APlayerController* PlayerController = Cast<APlayerController>(GetController())) //마우스 커서 비활성화
+		{
+			if (PlayerController != nullptr)
+			{
+				// 마우스 커서의 가시성 false로 설정
+				PlayerController->bShowMouseCursor = false;
+
+				//Set Movement Mode 설정 ??
+
+				//WBP_Leveling 위젯 안 보이게끔 Hidden 설정
+				LevelingWidget->SetVisibility(ESlateVisibility::Hidden);
+
+				//SetInputModeGameOnly 노드 구현
+				FInputModeGameOnly InputMode;
+				PlayerController->SetInputMode(InputMode);
+				//InputMode.SetWidgetToFocus(LevelingWidget->TakeWidget());
+				//마우스를 뷰포트에 고정할건지 자유롭게 놔둘건지 지정 기능
+				//InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+
+			}
+		}
+
+	}
+}
+
+void APlayerCharacter::TopRightHUD_1()
+{
+	//TopRightHUDWidget 의 Update_1 커스텀 이벤트 호출
+	FOutputDeviceNull pAR;
+	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_1 %f"), SkillLevel_1), pAR, nullptr, true);
+	//업데이트 안됨
+}
+void APlayerCharacter::TopRightHUD_2()
+{
+	FOutputDeviceNull pAR;
+	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_2 %f"), SkillLevel_2), pAR, nullptr, true);
+}
+
+void APlayerCharacter::TopRightHUD_3()
+{
+	FOutputDeviceNull pAR;
+	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_3 %f"), SkillLevel_3), pAR, nullptr, true);
+}
+
+void APlayerCharacter::TopRightHUD_4()
+{
+	FOutputDeviceNull pAR;
+	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_4 %f"), SkillLevel_4), pAR, nullptr, true);
+}
+
+void APlayerCharacter::skill_1() //스킬1 출력 관리 
+{
+	switch (SkillLevel_1)
+	{
+	case 1:
+		//SpellSpawnSkill1();
+		break;
+	case 2:
+		break;
+	case 3:
+		break;
+	case 4:
+		break;
+
+	}
+}
+
+void APlayerCharacter::skill_2()//스킬 2 출력 관리 
+{
+	switch (SkillLevel_2)
+	{
+	case 1:
+		break;
+	case 2:
+		break;
+	case 3:
+		break;
+	case 4:
+		break;
+
+	}
+}
+
+void APlayerCharacter::skill_3()//스킬3 출력 관리 
+{
+	switch (SkillLevel_3)
+	{
+	case 1:
+		break;
+	case 2:
+		break;
+	case 3:
+		break;
+	case 4:
+		break;
+
+	}
+}
+
+void APlayerCharacter::skill_4()//스킬4 출력 관리 
+{
+	switch (SkillLevel_4)
+	{
+	case 1:
+		break;
+	case 2:
+		break;
+	case 3:
+		break;
+	case 4:
+		break;
+
+	}
+}
+
+void APlayerCharacter::SpawnSkill_1(int NumProjectile, float Rotation, float RotIncrement)
+{
+	
+}
+
+void APlayerCharacter::SpawnSkill_2(int NumProjectile, float Rotation, float RotIncrement)
+{
+}
+
+void APlayerCharacter::SpawnSkill_3(int NumProjectile, float Rotation)
+{
+}
+
+void APlayerCharacter::SpawnSkill_4()
+{
+}
+
+
 
 void APlayerCharacter::RotateMeshTowardsCursor()
 {
@@ -254,6 +457,7 @@ void APlayerCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	RotateMeshTowardsCursor();
 	//SetSphereMeshLocationUnderCursor();
+
 }
 
 // Called to bind functionality to input
@@ -271,30 +475,71 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 void APlayerCharacter::GetHurtAndUpdateHealth(float DamageAmount)
 {
 	PlayerHealth -= DamageAmount;
-	float HealthPercentage = PlayerMaxHealth / PlayerHealth;
+	PlayerHealthPercentage = PlayerMaxHealth / PlayerHealth;
 
 	//PlayerWidgetClass->(HealthPercentage);
 	UE_LOG(LogTemp, Warning, TEXT("Player Hurt!"));
 
-	// Health Percentage 계산
-	
-	
-	//}
+	//WBP_Player 의 UpdateHealthPercentage 커스텀 이벤트 호출
+	FOutputDeviceNull pAR;
+	PlayerHealthPercentage = PlayerHealth / PlayerMaxHealth;
+	PlayerWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("UpdateHealthPercentage %f"), PlayerHealthPercentage), pAR, nullptr, true);
+	//HP 바 업데이트 되는 것 확인
+
 	if (PlayerHealth <= 0) //플레이어 사망 시
 	{
-	
-		UE_LOG(LogTemp, Warning, TEXT("Player Widjet!!!"));
-		
+		UE_LOG(LogTemp, Warning, TEXT("Player Dead!"));
+
+		if (GetWorld() != nullptr && GetWorld()->GetGameViewport() != nullptr)
+		{
+			UGameplayStatics::SetGamePaused(GetWorld(), true); // 퍼즈 기능 작동
+			DeathScreenWidget->SetVisibility(ESlateVisibility::Visible); //해당 위젯 블루프린트의 비저빌리티를 보이도록 변경
+			
+			if (APlayerController* PlayerController = Cast<APlayerController>(GetController())) //마우스 커서 활성화
+			{
+				if (PlayerController != nullptr)
+				{
+					// 마우스 커서의 가시성 True로 설정
+					PlayerController->bShowMouseCursor = true;
+				}
+			}
+
+		}
+
 	}
 	
 
 }
 
-void APlayerCharacter::LoadGameOver(float HealthPercentage)
+void APlayerCharacter::AddCoinExpericence(float PickupValue)
 {
+	CurrentExperience += PickupValue;
 
-	UE_LOG(LogTemp, Warning, TEXT("Load GameOver!"));
+	InPercent = CurrentExperience / ExpericenCap;
+
+	FOutputDeviceNull pAR;
+	PlayerHealthPercentage = PlayerHealth / PlayerMaxHealth;
+	PlayerWidget->CallFunctionByNameWithArguments
+	(*FString::Printf(TEXT("UpdateXPPercentage %f"), InPercent), pAR, nullptr, true);
+
+	if (CurrentExperience >= ExpericenCap)
+	{
+		PlayerHealthPercentage = PlayerHealth / PlayerMaxHealth;
+		PlayerWidget->CallFunctionByNameWithArguments
+		(*FString::Printf(TEXT("UpdateXPPercentage %f"), 0.0), pAR, nullptr, true);
+		CharacterLevel++;
+		CurrentExperience = 0;
+	}
+	StartSelectingSkills();
+	PlayerWidget->CallFunctionByNameWithArguments
+	(*FString::Printf(TEXT("IncreaseLevel %f"), CharacterLevel), pAR, nullptr, true);
 }
+
+//void APlayerCharacter::LoadGameOver(float HealthPercentage)
+//{
+//
+//	UE_LOG(LogTemp, Warning, TEXT("Load GameOver!"));
+//}
 
 //void APlayerCharacter::UpdateHealthPercentage(float NewPercentage)
 //{

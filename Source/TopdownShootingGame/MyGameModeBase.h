@@ -14,15 +14,29 @@ class TOPDOWNSHOOTINGGAME_API AMyGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(BlueprintCallable, Category="UMG_Game")
-	void ChangeMenuWidjet(TSubclassOf<UUserWidget> NewWidgetClass);
+	// 생성자
+	AMyGameModeBase();
 
-protected:
-	virtual void BeginPlay() override;
+	//게임 시작 시 호출되는 함수
+	virtual void StartPlay() override;
+	//게임 일시 정지 여부 설정
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void SetGamePaused(bool bPaused);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="UMG_Game")
-	TSubclassOf<UUserWidget> StartingWidgetClass;
 
-	UPROPERTY()
-	UUserWidget* CurrentWidget;
+	//UFUNCTION(BlueprintCallable, Category="UMG_Game")
+	//void ChangeMenuWidjet(TSubclassOf<UUserWidget> NewWidgetClass);
+
+//protected:
+	//virtual void BeginPlay() override;
+
+	///UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="UMG_Game")
+	//TSubclassOf<UUserWidget> StartingWidgetClass;
+
+	//UPROPERTY()
+	//UUserWidget* CurrentWidget;
+
+//protected:
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DefaultClasses")
+	//TSubclassOf<APawn> DefaultPawnClass;
 };
