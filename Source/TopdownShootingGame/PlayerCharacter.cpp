@@ -14,6 +14,7 @@
 #include "Misc/OutputDeviceNull.h" // 실제 출력을 수행하지 않고 로그 메시지 무시 -> 위젯 업데이트 시 사용
 //#include "Engine/GameInstance.h" // UGameInstance 헤더 포함 -> 추후 게임 모드나 게임 인스턴스 클래스로 이동해야하는 기능 -> SetGamePaused().
 #include "Kismet/GameplayStatics.h" // 게임 퍼즈 기능 사용하기 위한 함수
+#include "Components/SceneComponent.h" //씬 컴포넌트에 접근해서 스킬 출력 시 피봇 위치를 받아오기 위한 함수
 
 
 // Sets default values
@@ -147,7 +148,10 @@ APlayerCharacter::APlayerCharacter()
 			TopRightHUDWidget = Cast<UUserWidget>(PlayerWidget->GetWidgetFromName(TEXT("WBP_TopRightHUD")));
 		}
 	}
+	//Set timer by event
+	// FTimerManager& AActor::GetWorldTimerManager() const 함수 사용예) GetWorldTimerManager().SetTimer(...);
 	
+
 	//if (!DeathScreenWidget)// 하위 패널에 대한 액세스가 실패했을 때의 처리
 	//{
 	//	UE_LOG(LogTemp, Warning, TEXT("Failed to access DeathScreenWidget!"));
@@ -317,15 +321,20 @@ void APlayerCharacter::skill_1() //스킬1 출력 관리
 	switch (SkillLevel_1)
 	{
 	case 1:
-		//SpellSpawnSkill1();
+		SpawnSkill_1(1, 0.0, 0.0);
 		break;
 	case 2:
+		SpawnSkill_1(2, -10.0, 20.0);
 		break;
 	case 3:
+		SpawnSkill_1(3, -15.0, 15.0);
 		break;
 	case 4:
+		SpawnSkill_1(4, -15.0, 10.0);
 		break;
-
+	case 5:
+		SpawnSkill_1(5, -20.0, 10.0);
+		break;
 	}
 }
 
@@ -379,7 +388,34 @@ void APlayerCharacter::skill_4()//스킬4 출력 관리
 
 void APlayerCharacter::SpawnSkill_1(int NumProjectile, float Rotation, float RotIncrement)
 {
-	
+	//USceneComponent* Skill1PivotComponent = GetOwner()->GetComponentByClass<USceneComponent>(TEXT("Skill1Pivot"));
+	UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
+	USceneComponent* Skill1PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트를 가져옵니다.
+	USceneComponent* Skill1SpawnComponent = Skill1PivotComponent->GetChildComponent(0); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
+	FQuat NewRotationQuat(FRotator(0.f, Rotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
+
+	if(Skill1PivotComponent != nullptr)
+	{
+		Skill1PivotComponent->SetRelativeRotation(NewRotationQuat);
+
+		FVector SpawnTransformLocation = Skill1SpawnComponent->GetComponentLocation();
+		FRotator SpawnTransformRotation = Skill1SpawnComponent->GetComponentRotation();
+
+		FString Skill1ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Fire.Spell_Fire_C"; //Skill1 의 액터 클래스 경로 설정
+
+		UClass* Skill1ActorClass = LoadClass<AActor>(nullptr, *Skill1ActorClassPath);
+
+		for (int32 i = 0; i < NumProjectile; ++i)
+		{
+			AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, SpawnTransformLocation, SpawnTransformRotation);
+		}
+
+		Skill1PivotComponent->AddRelativeRotation(NewRotationQuat);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Skill1PivotComponent !="));
+	}
 }
 
 void APlayerCharacter::SpawnSkill_2(int NumProjectile, float Rotation, float RotIncrement)

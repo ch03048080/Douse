@@ -125,7 +125,7 @@ protected:
 	int CharacterLevel = 0;
 
 public:
-	//캐릭터 스펠 레벨
+	//캐릭터 스킬 레벨
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Experience")
 	int SkillLevel_1 = 1; //SpellLevelFire
 
@@ -138,4 +138,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Experience")
 	int SkillLevel_4 = 0; //SpellLevelDark
 
+	//스킬 액터 클래스
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillActor")
+	TSubclassOf<AActor> SpawnToSkill1;
+
+private:
+	UPROPERTY(EditAnywhere, Category = "Rotaion")
+	FRotator PivotRotation;
 };
