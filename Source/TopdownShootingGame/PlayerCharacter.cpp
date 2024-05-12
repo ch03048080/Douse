@@ -15,7 +15,7 @@
 //#include "Engine/GameInstance.h" // UGameInstance 헤더 포함 -> 추후 게임 모드나 게임 인스턴스 클래스로 이동해야하는 기능 -> SetGamePaused().
 #include "Kismet/GameplayStatics.h" // 게임 퍼즈 기능 사용하기 위한 함수
 #include "Components/SceneComponent.h" //씬 컴포넌트에 접근해서 스킬 출력 시 피봇 위치를 받아오기 위한 함수
-
+#include "TimerManager.h" // 타이머 - 액터 생성 시 사용되는 타이머 함수
 
 // Sets default values
 APlayerCharacter::APlayerCharacter()
@@ -38,11 +38,6 @@ APlayerCharacter::APlayerCharacter()
 	ViewCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ViewCamera"));		//카메라 컴포넌트 달아줌
 	ViewCamera->SetupAttachment(CameraBoom);									    //카메라를 스프링 암에 달아줌
 	//ViewCamera->bUsePawnControlRotation = false;									// 스프링 암의 회전만 사용합니다.
-
-	// 컨트롤러의 회전에 따라 스프링 암과 카메라의 회전을 조정합니다.
-	//bUseControllerRotationPitch = false;
-	//bUseControllerRotationYaw = false;
-	//bUseControllerRotationRoll = false;
 
 	//////////////플레이어 최대 체력 설정 ///////////////////
 	PlayerMaxHealth = 50.0f;
@@ -110,11 +105,15 @@ APlayerCharacter::APlayerCharacter()
 	} 	
 
 	//충돌 처리 (캡슐 컴포넌트)
-	UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
+	PlayerCapsuleComponent = GetCapsuleComponent();
 	// CrosshairMesh 생성
 	CrosshairMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CrosshairMesh"));
-	// 부모 컴포넌트에 붙이기 (예: RootComponent)
-	CrosshairMesh->SetupAttachment(PlayerCapsuleComponent);
+	// 루트 컴포넌트에 붙이기
+	CrosshairMesh->SetupAttachment(RootComponent);
+
+	//스킬 피봇 설정
+	SkillPivot = CreateDefaultSubobject<USceneComponent>(TEXT("SkillPivot"));
+	SkillPivot->SetupAttachment(PlayerCapsuleComponent);
 
 	// 스태틱 메쉬를 로드하여 CrosshairMesh에 할당
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(TEXT("/Engine/BasicShapes/Sphere.Sphere")); //스피어 생성 /Script/Engine.StaticMesh'/Engine/BasicShapes/Cylinder.Cylinder' 아니면 실린더로 생성해도 됨
@@ -149,28 +148,10 @@ APlayerCharacter::APlayerCharacter()
 		}
 	}
 	//Set timer by event
-	// FTimerManager& AActor::GetWorldTimerManager() const 함수 사용예) GetWorldTimerManager().SetTimer(...);
 	
+	SkillDelegate.BindUFunction(this, FName("SkillFunction"));
 
-	//if (!DeathScreenWidget)// 하위 패널에 대한 액세스가 실패했을 때의 처리
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("Failed to access DeathScreenWidget!"));
-	//}
-	//static ConstructorHelpers::FClassFinder<UUserWidget> DeathScreenWidgetClassFinder(TEXT("/Game/Blueprints/Player/Widgets/WBP_Death_Screen")); 
-	//if (DeathScreenWidgetClassFinder.Succeeded())
-	//{
-	//	DeathScreenWidgetClass = DeathScreenWidgetClassFinder.Class;
-	//	UE_LOG(LogTemp, Warning, TEXT("Death Screen Widget Find!"));
-	//	// 위젯 인스턴스 생성
-	//	DeathScreenWidget = CreateWidget<UUserWidget>(GetWorld(), DeathScreenWidgetClass);
-	//	if (DeathScreenWidget)
-	//	{
-	//		// 출력
-	//		DeathScreenWidget->AddToViewport();
-	//		//UE_LOG(LogTemp, Warning, TEXT("Death Screen Widget Create!"));
-	//	}
-	//}
-	
+	DistanceToSpawnSkillActor = 100.0f;
 }
 
 // Called when the game starts or when spawned
@@ -184,7 +165,7 @@ void APlayerCharacter::BeginPlay()
 		}
 	}
 	
-	
+	StartSkillTimer();
 	////충돌 처리 (캡슐 컴포넌트)
 	//UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
 	//if (PlayerCapsuleComponent)// 캡슐 컴포넌트에 대한 접근이 유효한 경우
@@ -389,33 +370,100 @@ void APlayerCharacter::skill_4()//스킬4 출력 관리
 void APlayerCharacter::SpawnSkill_1(int NumProjectile, float Rotation, float RotIncrement)
 {
 	//USceneComponent* Skill1PivotComponent = GetOwner()->GetComponentByClass<USceneComponent>(TEXT("Skill1Pivot"));
-	UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
+	//UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
 	USceneComponent* Skill1PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트를 가져옵니다.
-	USceneComponent* Skill1SpawnComponent = Skill1PivotComponent->GetChildComponent(0); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
+	USceneComponent* Skill1SpawnComponent = PlayerCapsuleComponent->GetChildComponent(1); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
 	FQuat NewRotationQuat(FRotator(0.f, Rotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
-
+	FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f));//스킬 레벨 업 시 출력되는 스킬의 각도를 조절하려고 Add Rotation 하기 위한 FQuat
+	
 	if(Skill1PivotComponent != nullptr)
 	{
 		Skill1PivotComponent->SetRelativeRotation(NewRotationQuat);
 
-		FVector SpawnTransformLocation = Skill1SpawnComponent->GetComponentLocation();
-		FRotator SpawnTransformRotation = Skill1SpawnComponent->GetComponentRotation();
-
-		FString Skill1ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Fire.Spell_Fire_C"; //Skill1 의 액터 클래스 경로 설정
-
-		UClass* Skill1ActorClass = LoadClass<AActor>(nullptr, *Skill1ActorClassPath);
-
-		for (int32 i = 0; i < NumProjectile; ++i)
+		if (Skill1SpawnComponent != nullptr)
 		{
-			AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, SpawnTransformLocation, SpawnTransformRotation);
-		}
+			FVector SpawnTransformLocation = Skill1SpawnComponent->GetComponentLocation(); // 크러쉬
+			FRotator SpawnTransformRotation = Skill1SpawnComponent->GetComponentRotation();
 
-		Skill1PivotComponent->AddRelativeRotation(NewRotationQuat);
+			FString Skill1ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Fire.Spell_Fire_C"; //Skill1 의 액터 클래스 경로 설정
+
+			UClass* Skill1ActorClass = LoadClass<AActor>(nullptr, *Skill1ActorClassPath);
+
+			for (int32 i = 0; i < NumProjectile; ++i)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Skill Level : %d"), SkillLevel_1);
+				UE_LOG(LogTemp, Warning, TEXT("Num of Projectile : %d"), NumProjectile);
+				UE_LOG(LogTemp, Warning, TEXT("Increase Rot : %f"), RotIncrement);
+				//Skill1PivotComponent->AddRelativeRotation(LevelUpRotationQuat);
+				AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, SpawnTransformLocation, SpawnTransformRotation);
+			}
+
+			Skill1PivotComponent->SetRelativeRotation(FRotator(0.f, 0.f, 0.f));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Skill1SpawnComponent !="));
+
+		}
 	}
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Skill1PivotComponent !="));
 	}
+
+	////USceneComponent* Skill1PivotComponent = GetOwner()->GetComponentByClass<USceneComponent>(TEXT("Skill1Pivot"));
+	////UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
+	//USceneComponent* Skill1PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트를 가져옵니다.
+	//USceneComponent* Skill1SpawnComponent = Skill1PivotComponent->GetChildComponent(1); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
+	//FQuat NewRotationQuat(FRotator(0.f, Rotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
+	//FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f));//스킬 레벨 업 시 출력되는 스킬의 각도를 조절하기 위해 Add Rotation 하기 위한 FQuat
+
+	//if (Skill1PivotComponent != nullptr)
+	//{
+	//	if (Skill1SpawnComponent != nullptr)
+	//	{
+	//		Skill1PivotComponent->SetRelativeRotation(NewRotationQuat);
+
+
+	//		FVector SpawnTransformLocation = Skill1SpawnComponent->GetComponentLocation(); // 크러쉬
+	//		FRotator SpawnTransformRotation = Skill1SpawnComponent->GetComponentRotation();
+
+	//		FString Skill1ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Fire.Spell_Fire_C"; //Skill1 의 액터 클래스 경로 설정
+
+	//		UClass* Skill1ActorClass = LoadClass<AActor>(nullptr, *Skill1ActorClassPath);
+
+	//		for (int32 i = 0; i < NumProjectile; ++i)
+	//		{
+	//			UE_LOG(LogTemp, Warning, TEXT("Skill Level : %d"), SkillLevel_1);
+	//			UE_LOG(LogTemp, Warning, TEXT("Num of Projectile : %d"), NumProjectile);
+	//			UE_LOG(LogTemp, Warning, TEXT("Increase Rot : %d"), RotIncrement);
+	//			Skill1PivotComponent->AddRelativeRotation(LevelUpRotationQuat);
+	//			AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, SpawnTransformLocation, SpawnTransformRotation);
+
+	//		}
+
+	//		Skill1PivotComponent->SetRelativeRotation(FRotator(0.f, 0.f, 0.f));
+	//	}
+	//}
+	//else
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("Skill1PivotComponent !="));
+	//}
+
+	//이렇게 작성하니, 크로스 헤어 메쉬 에서 시작하여 z 축 방향으로 액터가 발사됨.
+	//if (CrosshairMesh)
+	//{
+	//	FString Skill1ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Fire.Spell_Fire_C"; //Skill1 의 액터 클래스 경로 설정
+	//	UClass* Skill1ActorClass = LoadClass<AActor>(nullptr, *Skill1ActorClassPath);
+
+	//	FVector StartLocation = CrosshairMesh->GetComponentLocation();
+	//	FVector ForwardVector = CrosshairMesh->GetForwardVector();
+	//	FVector EndLocation = StartLocation + (ForwardVector * DistanceToSpawnSkillActor);
+
+	//	FActorSpawnParameters SpawnParams;
+	//	//GetWorld()->SpawnActor<ASkillActor>(SkillActorClass, EndLocation, FRotator::ZeroRotator, SpawnParams);
+	//	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, EndLocation, FRotator::ZeroRotator, SpawnParams);
+	//}
 }
 
 void APlayerCharacter::SpawnSkill_2(int NumProjectile, float Rotation, float RotIncrement)
@@ -507,6 +555,25 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	}
 
 }
+
+void APlayerCharacter::StartSkillTimer() //델리게이트를 사용하여 타이머 설정, 스킬 출력
+{
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, SkillDelegate, 1.0f, true, 1.f);
+}
+
+//void AMyActor::TimerPause()
+//{
+//	GetWorldTimerManager().PauseTimer(TestTimerHandle);
+//}
+
+void APlayerCharacter::SkillFunction()
+{
+	// Call your skill function here
+	skill_1();
+	UE_LOG(LogTemp, Warning, TEXT("Executing Skill_1")); //크러쉬
+}
+
+
 
 void APlayerCharacter::GetHurtAndUpdateHealth(float DamageAmount)
 {

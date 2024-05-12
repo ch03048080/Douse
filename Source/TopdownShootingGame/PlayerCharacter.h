@@ -8,6 +8,8 @@
 #include "Components/SphereComponent.h"
 #include "PlayerCharacter.generated.h"
 
+DECLARE_DYNAMIC_DELEGATE(FSkillDelegate);
+
 class USpringArmComponent;
 class UCameraComponent;
 
@@ -21,6 +23,18 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	// 타이머 시작 함수
+	//UFUNCTION()
+	void StartSkillTimer();
+private:
+	// 타이머에서 호출되는 함수
+	UFUNCTION()
+	void SkillFunction();
+	// Delegate to handle skill execution
+	FTimerHandle TimerHandle;
+	FTimerDelegate SkillDelegate;
+
+public:
 	//데미지를 처리하고 체력을 업데이트하는 함수
 	UFUNCTION(BlueprintCallable, Category = "CustomFunctions")
 	void GetHurtAndUpdateHealth(float DamageAmount);
@@ -97,9 +111,14 @@ protected:
 	//void SetSphereMeshLocationUnderCursor();
 
 protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	UCapsuleComponent* PlayerCapsuleComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	UStaticMeshComponent* CrosshairMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	USceneComponent* SkillPivot;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player")
 	float PlayerHealth;
@@ -119,7 +138,7 @@ protected:
 	float InPercent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Experience")
-	float ExpericenCap = 20.0;
+	float ExpericenCap = 50.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Experience")
 	int CharacterLevel = 0;
@@ -145,4 +164,6 @@ public:
 private:
 	UPROPERTY(EditAnywhere, Category = "Rotaion")
 	FRotator PivotRotation;
+
+	float DistanceToSpawnSkillActor;
 };
