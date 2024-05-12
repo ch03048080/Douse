@@ -25,15 +25,26 @@ public:
 
 	// 타이머 시작 함수
 	//UFUNCTION()
-	void StartSkillTimer();
+	void StartSkill1Timer();
+	UFUNCTION(BlueprintCallable, Category = "Skill")
+	void StartSkill2Timer();
 private:
 	// 타이머에서 호출되는 함수
-	UFUNCTION()
-	void SkillFunction();
-	// Delegate to handle skill execution
+	//UFUNCTION(BlueprintCallable, Category = "SkillDelegate") //델리게이트 함수에 UFUNCTION 안넣으면 크러쉬 뜸 
+	//void Skill1Function(); //스킬 1 델리게이트에 바인딩 될 함수
+	//UFUNCTION(BlueprintCallable, Category = "SkillDelegate")
+	//void Skill2Function();
+	
+	//타이머 핸들러, 델리게이트 선언 
+	//Skill 1 
 	FTimerHandle TimerHandle;
 	FTimerDelegate SkillDelegate;
-
+	//Skill 2
+	FTimerHandle TimerHandle2;
+	FTimerDelegate SkillDelegate2;
+	//Skill 3
+	FTimerHandle TimerHandle3;
+	FTimerDelegate SkillDelegate3;
 public:
 	//데미지를 처리하고 체력을 업데이트하는 함수
 	UFUNCTION(BlueprintCallable, Category = "CustomFunctions")
@@ -55,20 +66,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Experience")
 	void TopRightHUD_4(); // UI Update 함수
 
-	//스킬 출력
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	void skill_1();
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	void skill_2();
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	void skill_3();
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	void skill_4();
+	//스킬 출력 함수
+	UFUNCTION(BlueprintCallable, Category = "Skill")//스킬 1 델리게이트에 바인딩할 함수
+	void Skill_1();
+	UFUNCTION(BlueprintCallable, Category = "Skill")//스킬 2 델리게이트에 바인딩할 함수
+	void Skill_2();
+	UFUNCTION(BlueprintCallable, Category = "Skill")//스킬 3 델리게이트에 바인딩할 함수
+	void Skill_3();
+	UFUNCTION(BlueprintCallable, Category = "Skill")//스킬 4 델리게이트에 바인딩할 함수
+	void Skill_4();
 
-	void SpawnSkill_1(int NumProjectile, float Rotation, float RotIncrement); //SpellSpawnFireballs
-	void SpawnSkill_2(int NumProjectile, float Rotation, float RotIncrement); //SpellSpawnIceballs
-	void SpawnSkill_3(int NumProjectile, float Rotation); //SpellSpawnlightballs
+	void SpawnSkill_1(int NumProjectile, float StartRotation, float RotIncrement); //SpellSpawnFireballs
+	void SpawnSkill_2(int NumProjectile, float StartRotation, float RotIncrement); //SpellSpawnIceballs
+	void InitializeSkill_3(int NumProjectile, float Rotation); //SpellSpawnlightballs
+
+	UFUNCTION(BlueprintCallable, Category = "Skill")//스킬 3 Start 함수
+	void StartSkill_3();
+
 	void SpawnSkill_4(); //SpellSpawnDarkballs
+
+	
+
 private:
 	//카메라, 스프링 암 
 	USpringArmComponent* CameraBoom;
@@ -120,6 +138,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	USceneComponent* SkillPivot;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	USceneComponent* RotatingSkillSpawn;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player")
 	float PlayerHealth;
 
@@ -162,8 +183,8 @@ public:
 	TSubclassOf<AActor> SpawnToSkill1;
 
 private:
-	UPROPERTY(EditAnywhere, Category = "Rotaion")
-	FRotator PivotRotation;
+	//UPROPERTY(EditAnywhere, Category = "Rotaion")
+	//FRotator PivotRotation;
 
 	float DistanceToSpawnSkillActor;
 };

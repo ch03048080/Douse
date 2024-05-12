@@ -111,10 +111,17 @@ APlayerCharacter::APlayerCharacter()
 	// 루트 컴포넌트에 붙이기
 	CrosshairMesh->SetupAttachment(RootComponent);
 
-	//스킬 피봇 설정
+	//스킬 피봇 생성 및 붙이기
 	SkillPivot = CreateDefaultSubobject<USceneComponent>(TEXT("SkillPivot"));
 	SkillPivot->SetupAttachment(PlayerCapsuleComponent);
+	// X 값 +50 이동 (스킬 액터가 캐릭터와 너무 가까이 스폰되는 문제를 해결하기 위해)
+	SkillPivot->SetRelativeLocation(SkillPivot->GetRelativeLocation() + FVector(90.0f, 0.0f, 0.0f));
 
+	//스킬 3 액터 출력 시 필요한 컴포넌트 생성 및 붙이기
+	RotatingSkillSpawn = CreateDefaultSubobject<USceneComponent>(TEXT("RotatingSkillSpawn"));
+	RotatingSkillSpawn->SetupAttachment(PlayerCapsuleComponent);
+	RotatingSkillSpawn->SetRelativeLocation(RotatingSkillSpawn->GetRelativeLocation() + FVector(400.0f, 0.0f, 0.0f)); //거리 설정
+	
 	// 스태틱 메쉬를 로드하여 CrosshairMesh에 할당
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(TEXT("/Engine/BasicShapes/Sphere.Sphere")); //스피어 생성 /Script/Engine.StaticMesh'/Engine/BasicShapes/Cylinder.Cylinder' 아니면 실린더로 생성해도 됨
 	if (MeshAsset.Succeeded())
@@ -148,10 +155,13 @@ APlayerCharacter::APlayerCharacter()
 		}
 	}
 	//Set timer by event
-	
-	SkillDelegate.BindUFunction(this, FName("SkillFunction"));
-
-	DistanceToSpawnSkillActor = 100.0f;
+	//스킬 1 델리게이트에 함수 바인딩
+	SkillDelegate.BindUFunction(this, FName("Skill_1"));
+	//스킬 2 델리게이트에 함수 바인딩
+	SkillDelegate2.BindUFunction(this, FName("Skill_2"));
+	//스킬 3 델리게이트에 함수 바인딩
+	SkillDelegate3.BindUFunction(this, FName("Skill_3"));
+	//DistanceToSpawnSkillActor = 100.0f;
 }
 
 // Called when the game starts or when spawned
@@ -165,7 +175,7 @@ void APlayerCharacter::BeginPlay()
 		}
 	}
 	
-	StartSkillTimer();
+	StartSkill1Timer();
 	////충돌 처리 (캡슐 컴포넌트)
 	//UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
 	//if (PlayerCapsuleComponent)// 캡슐 컴포넌트에 대한 접근이 유효한 경우
@@ -234,11 +244,7 @@ void APlayerCharacter::StartSelectingSkills()
 
 			}
 		}
-		
 	}
-
-
-
 }
 
 void APlayerCharacter::ReturnToGame()
@@ -297,7 +303,7 @@ void APlayerCharacter::TopRightHUD_4()
 	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_4 %f"), SkillLevel_4), pAR, nullptr, true);
 }
 
-void APlayerCharacter::skill_1() //스킬1 출력 관리 
+void APlayerCharacter::Skill_1() //스킬1 출력 관리 
 {
 	switch (SkillLevel_1)
 	{
@@ -319,39 +325,46 @@ void APlayerCharacter::skill_1() //스킬1 출력 관리
 	}
 }
 
-void APlayerCharacter::skill_2()//스킬 2 출력 관리 
+void APlayerCharacter::Skill_2()//스킬 2 출력 관리 
 {
 	switch (SkillLevel_2)
 	{
 	case 1:
+		SpawnSkill_2(2, 0.0, 180.0);
 		break;
 	case 2:
+		SpawnSkill_2(3, 0.0, 120.0);
 		break;
 	case 3:
+		SpawnSkill_2(4, 0.0, 90.0);
 		break;
 	case 4:
+		SpawnSkill_2(6, 0.0, 60.0);
 		break;
 
 	}
 }
 
-void APlayerCharacter::skill_3()//스킬3 출력 관리 
+void APlayerCharacter::Skill_3()//스킬3 출력 관리 
 {
 	switch (SkillLevel_3)
 	{
 	case 1:
+		InitializeSkill_3(1, 0.0);
 		break;
 	case 2:
+		InitializeSkill_3(2, 180.0);
 		break;
 	case 3:
+		InitializeSkill_3(3, 120.0);
 		break;
 	case 4:
+		InitializeSkill_3(5, 72.0);
 		break;
-
 	}
 }
 
-void APlayerCharacter::skill_4()//스킬4 출력 관리 
+void APlayerCharacter::Skill_4()//스킬4 출력 관리 
 {
 	switch (SkillLevel_4)
 	{
@@ -367,23 +380,46 @@ void APlayerCharacter::skill_4()//스킬4 출력 관리
 	}
 }
 
-void APlayerCharacter::SpawnSkill_1(int NumProjectile, float Rotation, float RotIncrement)
+void APlayerCharacter::StartSkill1Timer() //델리게이트를 사용하여 스킬 1 타이머 설정, 스킬 출력 
 {
-	//USceneComponent* Skill1PivotComponent = GetOwner()->GetComponentByClass<USceneComponent>(TEXT("Skill1Pivot"));
-	//UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, SkillDelegate, 1.0f, true, 1.f);
+}
+
+void APlayerCharacter::StartSkill2Timer() //델리게이트를 사용하여 스킬 2 타이머 설정, 스킬 출력
+{
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle2, SkillDelegate2, 1.5f, true, 1.5f);
+}
+
+//void APlayerCharacter::Skill1Function()
+//{
+//	// Call your skill function here
+//
+//	Skill_1();
+//	//UE_LOG(LogTemp, Warning, TEXT("Executing Skill_1")); //크러쉬
+//}
+
+//void APlayerCharacter::Skill2Function()
+//{
+//	UE_LOG(LogTemp, Warning, TEXT("Executing Skill_2"));
+//	Skill_2();
+//}
+
+void APlayerCharacter::SpawnSkill_1(int NumProjectile, float StartRotation, float RotIncrement)
+{
 	USceneComponent* Skill1PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트를 가져옵니다.
 	USceneComponent* Skill1SpawnComponent = PlayerCapsuleComponent->GetChildComponent(1); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
-	FQuat NewRotationQuat(FRotator(0.f, Rotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
+	FQuat NewRotationQuat(FRotator(0.f, StartRotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
 	FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f));//스킬 레벨 업 시 출력되는 스킬의 각도를 조절하려고 Add Rotation 하기 위한 FQuat
-	
-	if(Skill1PivotComponent != nullptr)
+
+	if (Skill1PivotComponent != nullptr)
 	{
-		Skill1PivotComponent->SetRelativeRotation(NewRotationQuat);
+		Skill1PivotComponent->SetRelativeRotation(NewRotationQuat); //스킬 여러개 출력되는 기능 구현 전에는 의미가 없음?
 
 		if (Skill1SpawnComponent != nullptr)
 		{
-			FVector SpawnTransformLocation = Skill1SpawnComponent->GetComponentLocation(); // 크러쉬
-			FRotator SpawnTransformRotation = Skill1SpawnComponent->GetComponentRotation();
+			FVector SpawnTransformLocation = SkillPivot->GetComponentLocation();
+			FRotator SpawnTransformRotation = SkillPivot->GetComponentRotation();
+			//SpawnTransformRotation.Yaw += 90.0f; //스킬 출력 방향이 캐릭터의 왼쪽 팔에서 나오는 문제 수정...
 
 			FString Skill1ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Fire.Spell_Fire_C"; //Skill1 의 액터 클래스 경로 설정
 
@@ -395,7 +431,8 @@ void APlayerCharacter::SpawnSkill_1(int NumProjectile, float Rotation, float Rot
 				UE_LOG(LogTemp, Warning, TEXT("Num of Projectile : %d"), NumProjectile);
 				UE_LOG(LogTemp, Warning, TEXT("Increase Rot : %f"), RotIncrement);
 				//Skill1PivotComponent->AddRelativeRotation(LevelUpRotationQuat);
-				AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, SpawnTransformLocation, SpawnTransformRotation);
+				FRotator SpawnedRotation = SpawnTransformRotation + FRotator(0.0f, RotIncrement * i + StartRotation , 0.0f);
+				AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, SpawnTransformLocation, SpawnedRotation);
 			}
 
 			Skill1PivotComponent->SetRelativeRotation(FRotator(0.f, 0.f, 0.f));
@@ -410,73 +447,94 @@ void APlayerCharacter::SpawnSkill_1(int NumProjectile, float Rotation, float Rot
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Skill1PivotComponent !="));
 	}
-
-	////USceneComponent* Skill1PivotComponent = GetOwner()->GetComponentByClass<USceneComponent>(TEXT("Skill1Pivot"));
-	////UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
-	//USceneComponent* Skill1PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트를 가져옵니다.
-	//USceneComponent* Skill1SpawnComponent = Skill1PivotComponent->GetChildComponent(1); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
-	//FQuat NewRotationQuat(FRotator(0.f, Rotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
-	//FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f));//스킬 레벨 업 시 출력되는 스킬의 각도를 조절하기 위해 Add Rotation 하기 위한 FQuat
-
-	//if (Skill1PivotComponent != nullptr)
-	//{
-	//	if (Skill1SpawnComponent != nullptr)
-	//	{
-	//		Skill1PivotComponent->SetRelativeRotation(NewRotationQuat);
-
-
-	//		FVector SpawnTransformLocation = Skill1SpawnComponent->GetComponentLocation(); // 크러쉬
-	//		FRotator SpawnTransformRotation = Skill1SpawnComponent->GetComponentRotation();
-
-	//		FString Skill1ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Fire.Spell_Fire_C"; //Skill1 의 액터 클래스 경로 설정
-
-	//		UClass* Skill1ActorClass = LoadClass<AActor>(nullptr, *Skill1ActorClassPath);
-
-	//		for (int32 i = 0; i < NumProjectile; ++i)
-	//		{
-	//			UE_LOG(LogTemp, Warning, TEXT("Skill Level : %d"), SkillLevel_1);
-	//			UE_LOG(LogTemp, Warning, TEXT("Num of Projectile : %d"), NumProjectile);
-	//			UE_LOG(LogTemp, Warning, TEXT("Increase Rot : %d"), RotIncrement);
-	//			Skill1PivotComponent->AddRelativeRotation(LevelUpRotationQuat);
-	//			AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, SpawnTransformLocation, SpawnTransformRotation);
-
-	//		}
-
-	//		Skill1PivotComponent->SetRelativeRotation(FRotator(0.f, 0.f, 0.f));
-	//	}
-	//}
-	//else
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("Skill1PivotComponent !="));
-	//}
-
-	//이렇게 작성하니, 크로스 헤어 메쉬 에서 시작하여 z 축 방향으로 액터가 발사됨.
-	//if (CrosshairMesh)
-	//{
-	//	FString Skill1ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Fire.Spell_Fire_C"; //Skill1 의 액터 클래스 경로 설정
-	//	UClass* Skill1ActorClass = LoadClass<AActor>(nullptr, *Skill1ActorClassPath);
-
-	//	FVector StartLocation = CrosshairMesh->GetComponentLocation();
-	//	FVector ForwardVector = CrosshairMesh->GetForwardVector();
-	//	FVector EndLocation = StartLocation + (ForwardVector * DistanceToSpawnSkillActor);
-
-	//	FActorSpawnParameters SpawnParams;
-	//	//GetWorld()->SpawnActor<ASkillActor>(SkillActorClass, EndLocation, FRotator::ZeroRotator, SpawnParams);
-	//	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, EndLocation, FRotator::ZeroRotator, SpawnParams);
-	//}
 }
 
-void APlayerCharacter::SpawnSkill_2(int NumProjectile, float Rotation, float RotIncrement)
+void APlayerCharacter::SpawnSkill_2(int NumProjectile, float StartRotation, float RotIncrement)
 {
+	USceneComponent* Skill2PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트를 가져옵니다.
+	USceneComponent* Skill2SpawnComponent = PlayerCapsuleComponent->GetChildComponent(1); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
+	FQuat NewRotationQuat(FRotator(0.f, StartRotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
+	FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f));//스킬 레벨 업 시 출력되는 스킬의 각도를 조절하려고 Add Rotation 하기 위한 FQuat
+
+	if (Skill2PivotComponent != nullptr)
+	{
+		Skill2PivotComponent->SetRelativeRotation(NewRotationQuat); //스킬 여러개 출력되는 기능 구현 전에는 의미가 없음?
+
+		if (Skill2SpawnComponent != nullptr)
+		{
+			FVector SpawnTransformLocation = SkillPivot->GetComponentLocation();
+			FRotator SpawnTransformRotation = SkillPivot->GetComponentRotation();
+			//SpawnTransformRotation.Yaw += 90.0f; //스킬 출력 방향이 캐릭터의 왼쪽 팔에서 나오는 문제 수정...
+
+			FString Skill2ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Ice.Spell_Ice_C"; //Skill2 의 액터 클래스 경로 설정
+
+			UClass* Skill2ActorClass = LoadClass<AActor>(nullptr, *Skill2ActorClassPath);
+
+			for (int32 i = 0; i < NumProjectile; ++i)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Skill 2 Level : %d"), SkillLevel_1);
+				UE_LOG(LogTemp, Warning, TEXT("2 , Num of Projectile : %d"), NumProjectile);
+				UE_LOG(LogTemp, Warning, TEXT("2, Increase Rot : %f"), RotIncrement);
+				//Skill2PivotComponent->AddRelativeRotation(LevelUpRotationQuat);
+				FRotator SpawnedRotation = SpawnTransformRotation + FRotator(0.0f, RotIncrement * i + StartRotation, 0.0f);
+				AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill2ActorClass, SpawnTransformLocation, SpawnedRotation);
+			}
+
+			Skill2PivotComponent->SetRelativeRotation(FRotator(0.f, 0.f, 0.f));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Skill2SpawnComponent !="));
+
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Skill2PivotComponent !="));
+	}
+
 }
 
-void APlayerCharacter::SpawnSkill_3(int NumProjectile, float Rotation)
+void APlayerCharacter::InitializeSkill_3(int NumProjectile, float Rotation) // initial Skill3
 {
+	//initial Skill3 
+	USceneComponent* Skill3PivotComponent = PlayerCapsuleComponent->GetChildComponent(0);
+	USceneComponent* Skill3SpawnComponent = PlayerCapsuleComponent->GetChildComponent(1);
+	FQuat RotationQuat(FRotator(0.f, Rotation, 0.f));
+	FAttachmentTransformRules Skill3AttachmentRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true);
+	if (Skill3PivotComponent != nullptr)
+	{
+		if (Skill3SpawnComponent != nullptr)
+		{
+			FVector SpawnTransformLocation = RotatingSkillSpawn->GetComponentLocation();
+			FRotator SpawnTransformRotation = RotatingSkillSpawn->GetComponentRotation();
+
+			FString Skill3ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Light_Straight.Spell_Light_Straight_C"; //Skill3 의 액터 클래스 경로 설정
+			UClass* Skill3ActorClass = LoadClass<AActor>(nullptr, *Skill3ActorClassPath);
+			for (int32 i = 0; i < NumProjectile; ++i)
+			{
+				FRotator SpawnedRotation = SpawnTransformRotation + FRotator(0.0f, Rotation * i , 0.0f);
+				AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>
+					(Skill3ActorClass, SpawnTransformLocation, SpawnedRotation);
+				SpawnedActor->AttachToComponent(Skill3PivotComponent, Skill3AttachmentRules);
+				//Skill3SpawnComponent->AddLocalRotation();
+			}
+		}
+	}
+
+
+}
+
+void APlayerCharacter::StartSkill_3()
+{
+
 }
 
 void APlayerCharacter::SpawnSkill_4()
 {
 }
+
+
 
 
 
@@ -555,25 +613,6 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	}
 
 }
-
-void APlayerCharacter::StartSkillTimer() //델리게이트를 사용하여 타이머 설정, 스킬 출력
-{
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle, SkillDelegate, 1.0f, true, 1.f);
-}
-
-//void AMyActor::TimerPause()
-//{
-//	GetWorldTimerManager().PauseTimer(TestTimerHandle);
-//}
-
-void APlayerCharacter::SkillFunction()
-{
-	// Call your skill function here
-	skill_1();
-	UE_LOG(LogTemp, Warning, TEXT("Executing Skill_1")); //크러쉬
-}
-
-
 
 void APlayerCharacter::GetHurtAndUpdateHealth(float DamageAmount)
 {
