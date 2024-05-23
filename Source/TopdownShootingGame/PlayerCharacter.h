@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
 #include "Components/SphereComponent.h"
+#include "Components/TimelineComponent.h"
 #include "PlayerCharacter.generated.h"
 
 DECLARE_DYNAMIC_DELEGATE(FSkillDelegate);
@@ -79,33 +80,68 @@ public:
 	void SpawnSkill_1(int NumProjectile, float StartRotation, float RotIncrement); //SpellSpawnFireballs
 	void SpawnSkill_2(int NumProjectile, float StartRotation, float RotIncrement); //SpellSpawnIceballs
 	void InitializeSkill_3(int NumProjectile, float Rotation); //SpellSpawnlightballs
+	
+	//스킬 3 관련 선언들
+	UClass* Skill3ActorClass;
+	void DestroyAllActorsOfClass(UWorld* World, TSubclassOf<AActor> ActorClass);
+
+	UFUNCTION(BlueprintCallable, Category = "Skill")
+	void StartRotatingLight();
+
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timeline") //스킬 액터를 회전 시키기 위한 타임라인 컴포넌트
+	UTimelineComponent* SkillRotationTimeline;
+
+	
+	UPROPERTY(EditAnywhere, Category = "Skill")
+	USceneComponent* Skill3PivotComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Skill")
+	USceneComponent* Skill3SpawnComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Skill")
+	FOnTimelineFloat ProgressFunction; //타임라인 
+	
+	UPROPERTY(EditAnywhere, Category = "Skill")
+	FOnTimelineEvent TimelineFinishedEvent; //타임라인
+
+	UPROPERTY(EditAnywhere, Category = "Timeline") //스킬 액터를 회전 시키기 위한 타임라인 커브
+	UCurveFloat* RotationCurve;
 
 	UFUNCTION(BlueprintCallable, Category = "Skill")//스킬 3 Start 함수
 	void StartSkill_3();
+	UFUNCTION(BlueprintCallable, Category = "Skill")
+	void UpdateRotationProgress(float Value);
+	UFUNCTION(BlueprintCallable, Category = "Skill")
+	void OnRotationComplete();
 
 	void SpawnSkill_4(); //SpellSpawnDarkballs
 
 	
-
 private:
 	//카메라, 스프링 암 
 	USpringArmComponent* CameraBoom;
 	UCameraComponent* ViewCamera;
 
+public:
 	//위젯 클래스를 저장할 멤버 변수 선언
-	UPROPERTY(EditAnywhere, Category = "Widget")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	TSubclassOf<class UUserWidget> PlayerWidgetClass; 
-	UPROPERTY(EditAnywhere, Category = "Widget")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	TSubclassOf<class UUserWidget> DeathScreenWidgetClass;
-	UPROPERTY(EditAnywhere, Category = "Widget")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	TSubclassOf<class UUserWidget> LevelingWidgetClass;
-	UPROPERTY(EditAnywhere, Category = "Widget")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	TSubclassOf<class UUserWidget> TopRightHUDClass;
 
 	//위젯 인스턴스를 저장할 변수 선언
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,  Category = "Widget")
 	UUserWidget* PlayerWidget; //WBP_Player
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	UUserWidget* DeathScreenWidget; //WBP_DeathScreen
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	UUserWidget* LevelingWidget; //WBP_Leveling
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	UUserWidget* TopRightHUDWidget; //WBP_TopRightHUD
 
 protected:	
@@ -113,7 +149,7 @@ protected:
 	
 	// 향상된입력 - 캐릭터 이동 및 점프
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, Meta = (AllowPrivateAccess = "true"))	
-		TObjectPtr<class UInputMappingContext> DefaultMappingContext;//늘리고싶으면 아래에 또하나 만들면됌. 	
+		TObjectPtr<class UInputMappingContext> DefaultMappingContext; //늘리고싶으면 아래에 또하나 만들면됌. 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, Meta = (AllowPrivateAccess = "true"))	
 		TObjectPtr<class UInputAction> JumpAction; 	 //점프 액션
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, Meta = (AllowPrivateAccess = "true"))	
@@ -135,10 +171,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	UStaticMeshComponent* CrosshairMesh;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components") //기본 스킬 피봇 생성
 	USceneComponent* SkillPivot;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components") //스킬 피봇 생성
+	USceneComponent* Skill3Pivot;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components") //스킬 3 스폰 피봇 생성
 	USceneComponent* RotatingSkillSpawn;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player")
@@ -181,6 +221,11 @@ public:
 	//스킬 액터 클래스
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillActor")
 	TSubclassOf<AActor> SpawnToSkill1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillActor")
+	TSubclassOf<AActor> SpawnToSkill3;
+
+	
 
 private:
 	//UPROPERTY(EditAnywhere, Category = "Rotaion")
