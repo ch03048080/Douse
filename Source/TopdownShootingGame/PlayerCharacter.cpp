@@ -10,6 +10,7 @@
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
 #include "MyGameModeBase.h"
+#include "Math/UnrealMathUtility.h"
 
 #include "Misc/OutputDeviceNull.h" // 실제 출력을 수행하지 않고 로그 메시지 무시 -> 위젯 업데이트 시 사용
 //#include "Engine/GameInstance.h" // UGameInstance 헤더 포함 -> 추후 게임 모드나 게임 인스턴스 클래스로 이동해야하는 기능 -> SetGamePaused().
@@ -24,10 +25,13 @@ APlayerCharacter::APlayerCharacter()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	//월드 받아오기
+	//World = GetWorld();
+
 	//카메라
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));   //스프링 암 컴포넌트 달아줌
 	CameraBoom->SetupAttachment(GetRootComponent());							    //루트 컴포넌트 아래로 달아줌
-	CameraBoom->TargetArmLength = 1200.f;										    //타겟 암 길이 조정
+	CameraBoom->TargetArmLength = 2500.f;										    //타겟 암 길이 조정
 	CameraBoom->SetWorldRotation(FRotator(-50.f, 0.f, 0.f));
 	// 스프링 암의 회전 프로퍼티를 월드로 변경
 	CameraBoom->bInheritPitch = false;
@@ -146,7 +150,7 @@ APlayerCharacter::APlayerCharacter()
 	}
 
 	// 메쉬 스케일 수정
-	FVector MeshScale(0.7f, 0.7f, 0.08f); // 원하는 스케일 값으로 수정
+	FVector MeshScale(0.7f, 0.7f, 0.08f); //원하는 스케일 값으로 수정
 	CrosshairMesh->SetWorldScale3D(MeshScale);
 
 	// 위젯 출력
@@ -202,6 +206,9 @@ APlayerCharacter::APlayerCharacter()
 		RotationCurve = Curve.Object;
 	}
 	
+	//적 Enemy Dragon3 클래스 로드하기
+	Enemy_Dragon3 = LoadClass<ACharacter>(nullptr, *Dragon3ActorClassPath);
+	EnemySpawnDelegate.BindUFunction(this, FName("SpawnEnemy"));
 }
 
 // Called when the game starts or when spawned
@@ -222,7 +229,19 @@ void APlayerCharacter::BeginPlay()
 	//SkillRotationTimeline->SetTimelineLengthMode(ETimelineLengthMode::TL_LastKeyFrame);
 	SkillRotationTimeline->SetTimelineFinishedFunc(TimelineFinishedEvent); // 타임라인 끝날 때 호출될 콜백함수 추가
 	SkillRotationTimeline->AddInterpFloat(RotationCurve, ProgressFunction); // 타임라인의 Curve, 콜백함수 추가
-
+	
+	//Enemy Spawn
+	FVector SpawnVector;
+	FRotator SpawnRotator;
+	SpawnVector = FVector(0.0f, 0.0f, 0.0f);
+	SpawnRotator = FRotator(0.0f, 0.0f, 0.0f);
+	SpawnLocation = SpawnVector;
+	SpawnRotation = SpawnRotator;
+	
+	//SpawnVector = FVector(rand(), rand(), rand());
+	//SpawnRotator = FRotator(rand(), rand(), rand());
+	//SpawnEnemy();
+	StartSpawnEnemy();
 	
 	////충돌 처리 (캡슐 컴포넌트)
 	//UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
@@ -270,6 +289,8 @@ void APlayerCharacter::Jump()
 
 void APlayerCharacter::StartSelectingSkills()
 {
+	if (SkillLevel_1 == 5 && SkillLevel_2 == 5 && SkillLevel_3 == 5)
+		return;
 	if (GetWorld() != nullptr)
 	{
 		UGameplayStatics::SetGamePaused(GetWorld(), true); // 퍼즈 기능 작동
@@ -691,6 +712,65 @@ void APlayerCharacter::RotateMeshTowardsCursor()
 	}
 }
 
+void APlayerCharacter::SpawnEnemy() 
+{
+	//AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill1ActorClass, SpawnTransformLocation, SpawnedRotation);
+	//SpawnLocation = FVector(rand() % 50 - 100, rand() % 50 - 100, 0.0);
+	//SpawnRotation = FRotator(rand(), rand(), rand());
+	SelectRandomSpawnLocation();
+	UWorld* World = GetWorld();
+	if (Enemy_Dragon3)
+	{
+		
+		if (World)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy_Dragon3, SpawnLocation, SpawnRotation, SpawnParams);//스폰 확인
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Enemy_Dragon3 class is not valid"));
+	}
+}
+
+void APlayerCharacter::StartSpawnEnemy()
+{
+	
+	GetWorld()->GetTimerManager().SetTimer(EnemySpawnTimerHandle, EnemySpawnDelegate, 3.0f, true, 2.0f);
+}
+
+void APlayerCharacter::SelectRandomSpawnLocation()
+{
+	int randNum = FMath::RandRange(1, 4);
+
+	//랜덤 좌표 범위 설정
+	// X : 3230 	      Y : -3800 ~ 3800
+	// X : -3790          Y : -3800 ~ 3800
+	// X : - 3600 ~ 3600  Y : 3880
+	// X : -3600 ~ 3600   Y : -3920
+
+	switch (randNum)
+	{
+	case 1:
+		SpawnLocation = FVector(3230.0f, FMath::FRandRange(0.0f,7600.0f)-3800.0f, 0.0f);
+		//SpawnLocation = FVector(300.0f, 300.0f, 0.0f);
+		break;
+	case 2:
+		SpawnLocation = FVector(-3790.0f, FMath::FRandRange(0.0f, 7600.0f) - 3800.0f, 0.0f);
+		//SpawnLocation = FVector(-300.0f, -300.0f, 0.0f);
+		break;
+	case 3:
+		SpawnLocation = FVector(FMath::FRandRange(0.0f, 7200.0f) - 3600.0f, 3880.0f, 0.0f);
+		//SpawnLocation = FVector(-300.0f, 300.0f, 0.0f);
+		break;
+	case 4:
+		SpawnLocation = FVector(FMath::FRandRange(0.0f, 7200.0f) - 3600.0f, -3920.0f, 0.0f);
+		//SpawnLocation = FVector(300.0f, -300.0f, 0.0f);
+		break;
+	}
+}
+
 // Called every frame
 void APlayerCharacter::Tick(float DeltaTime)
 {
@@ -758,26 +838,33 @@ void APlayerCharacter::GetHurtAndUpdateHealth(float DamageAmount)
 
 void APlayerCharacter::AddCoinExpericence(float PickupValue)
 {
+	FOutputDeviceNull pAR;
+	if (SkillLevel_1 == 5 && SkillLevel_2 == 5 && SkillLevel_3 == 5)
+	{
+		PlayerWidget->CallFunctionByNameWithArguments
+		(*FString::Printf(TEXT("Level_Max")), pAR, nullptr, true);
+		return;
+	}
 	CurrentExperience += PickupValue;
 
 	InPercent = CurrentExperience / ExpericenCap;
 
-	FOutputDeviceNull pAR;
+	
 	PlayerHealthPercentage = PlayerHealth / PlayerMaxHealth;
 	PlayerWidget->CallFunctionByNameWithArguments
-	(*FString::Printf(TEXT("UpdateXPPercentage %f"), InPercent), pAR, nullptr, true);
+	(*FString::Printf(TEXT("UpdateXP_Percentage %f"), InPercent), pAR, nullptr, true);
 
 	if (CurrentExperience >= ExpericenCap)
 	{
 		PlayerHealthPercentage = PlayerHealth / PlayerMaxHealth;
 		PlayerWidget->CallFunctionByNameWithArguments
-		(*FString::Printf(TEXT("UpdateXPPercentage %f"), 0.0), pAR, nullptr, true);
+		(*FString::Printf(TEXT("UpdateXP_Percentage %f"), 0.0), pAR, nullptr, true);
 		CharacterLevel++;
 		CurrentExperience = 0;
+		StartSelectingSkills();
 	}
-	StartSelectingSkills();
-	PlayerWidget->CallFunctionByNameWithArguments
-	(*FString::Printf(TEXT("IncreaseLevel %f"), CharacterLevel), pAR, nullptr, true);
+	//PlayerWidget->CallFunctionByNameWithArguments
+	//(*FString::Printf(TEXT("IncreaseLevel %f"), CharacterLevel), pAR, nullptr, true);
 }
 
 //void APlayerCharacter::LoadGameOver(float HealthPercentage)

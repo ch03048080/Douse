@@ -24,6 +24,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	//UWorld* World;
+
 	// 타이머 시작 함수
 	//UFUNCTION()
 	void StartSkill1Timer();
@@ -46,6 +48,10 @@ private:
 	//Skill 3
 	FTimerHandle TimerHandle3;
 	FTimerDelegate SkillDelegate3;
+	//적 스폰
+	FTimerHandle EnemySpawnTimerHandle;
+	FTimerDelegate EnemySpawnDelegate;
+
 public:
 	//데미지를 처리하고 체력을 업데이트하는 함수
 	UFUNCTION(BlueprintCallable, Category = "CustomFunctions")
@@ -232,4 +238,20 @@ private:
 	//FRotator PivotRotation;
 
 	float DistanceToSpawnSkillActor;
+
+public:
+
+	//적 스폰 함수
+
+	UClass* Enemy_Dragon3;
+	FString Dragon3ActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies.BPMaster_Enemies_C";
+	ACharacter* SpawnedEnemy; // 스폰된 Enemy 저장
+
+	UFUNCTION(BlueprintCallable, Category = "SpawnEnemyTimeline")
+	void SpawnEnemy(); 
+	void StartSpawnEnemy();
+	///FVector SpawnLocation, FRotator SpawnRotation
+	void SelectRandomSpawnLocation();
+	FVector SpawnLocation;
+	FRotator SpawnRotation;
 };
