@@ -51,6 +51,9 @@ private:
 	//적 스폰
 	FTimerHandle EnemySpawnTimerHandle;
 	FTimerDelegate EnemySpawnDelegate;
+	//게임 플레이 타이머
+	FTimerHandle GamePlayTimerHandle;
+	FTimerDelegate GamePlayDelegate;
 
 public:
 	//데미지를 처리하고 체력을 업데이트하는 함수
@@ -139,6 +142,8 @@ public:
 	TSubclassOf<class UUserWidget> LevelingWidgetClass;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	TSubclassOf<class UUserWidget> TopRightHUDClass;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
+	TSubclassOf<class UUserWidget> StageClearWidgetClass;
 
 	//위젯 인스턴스를 저장할 변수 선언
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,  Category = "Widget")
@@ -149,6 +154,8 @@ public:
 	UUserWidget* LevelingWidget; //WBP_Leveling
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
 	UUserWidget* TopRightHUDWidget; //WBP_TopRightHUD
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Widget")
+	UUserWidget* StageClearWidget; //WBP_StageClearWidget
 
 protected:	
 	virtual void BeginPlay() override;
@@ -241,17 +248,46 @@ private:
 
 public:
 
-	//적 스폰 함수
-
-	UClass* Enemy_Dragon3;
+	//적 스폰 기능 구현
+	//적 클래스 받아오기
+	UClass* Enemy1_Dragon3;
 	FString Dragon3ActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies.BPMaster_Enemies_C";
+
+	UClass* Enemy2_BabyDragon;
+	FString BabyDragonActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies_Child_Enemy2_BabyDragon.BPMaster_Enemies_Child_Enemy2_BabyDragon_C";
+
+	UClass* Enemy3_GoldDragon;
+	FString GoldDragonActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies_Child_Enemy3_GoldDragon.BPMaster_Enemies_Child_Enemy3_GoldDragon_C";
+
+	UClass* Enemy4_MaxDragon3;
+	FString MaxDragon3ActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies_Child_Enemy4_MaxDragon.BPMaster_Enemies_Child_Enemy4_MaxDragon_C";
 	ACharacter* SpawnedEnemy; // 스폰된 Enemy 저장
 
 	UFUNCTION(BlueprintCallable, Category = "SpawnEnemyTimeline")
 	void SpawnEnemy(); 
 	void StartSpawnEnemy();
+	float SpawnInterval = 0.0f;
+	float SpawnIntervalDecreaseRate = 0.0f;
+	float MinSpawnInterval = 0.0f;
 	///FVector SpawnLocation, FRotator SpawnRotation
 	void SelectRandomSpawnLocation();
 	FVector SpawnLocation;
 	FRotator SpawnRotation;
+
+
+//게임 플레이 타이머 기능
+	float TimerDuration = 0.0f;
+	float CurrentTime = 0.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "GamePlayTimer")
+	void UpdateTimer();
+	void OnTimerEnd();
+
+	//타이머 해제 함수
+	UFUNCTION(BlueprintCallable, Category = "ResetTimer")
+	void ResetTimer();
+
+	//플레이어 스코어 계산 함수
+	int PlayerScore = 0;
+	void CalculatePlayerScore();
 };

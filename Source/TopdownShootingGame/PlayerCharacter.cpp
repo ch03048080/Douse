@@ -22,6 +22,7 @@
 // Sets default values
 APlayerCharacter::APlayerCharacter()
 {
+	//GetWorld()->GetTimerManager().ClearTimer(EnemySpawnTimerHandle); //타이머 해제
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -31,7 +32,7 @@ APlayerCharacter::APlayerCharacter()
 	//카메라
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));   //스프링 암 컴포넌트 달아줌
 	CameraBoom->SetupAttachment(GetRootComponent());							    //루트 컴포넌트 아래로 달아줌
-	CameraBoom->TargetArmLength = 2500.f;										    //타겟 암 길이 조정
+	CameraBoom->TargetArmLength = 1600.f;										    //타겟 암 길이 조정
 	CameraBoom->SetWorldRotation(FRotator(-50.f, 0.f, 0.f));
 	// 스프링 암의 회전 프로퍼티를 월드로 변경
 	CameraBoom->bInheritPitch = false;
@@ -169,6 +170,8 @@ APlayerCharacter::APlayerCharacter()
 			LevelingWidget = Cast<UUserWidget>(PlayerWidget->GetWidgetFromName(TEXT("WBP_Leveling")));
 			//WBP_Player 하위 패널인 WBP_TopRightHUD 연결
 			TopRightHUDWidget = Cast<UUserWidget>(PlayerWidget->GetWidgetFromName(TEXT("WBP_TopRightHUD")));
+			//WBP_Player 하위 패널인 WBP_StageClear 연결
+			StageClearWidget = Cast<UUserWidget>(PlayerWidget->GetWidgetFromName(TEXT("WBP_StageClear")));
 		}
 		else
 		{
@@ -207,8 +210,20 @@ APlayerCharacter::APlayerCharacter()
 	}
 	
 	//적 Enemy Dragon3 클래스 로드하기
-	Enemy_Dragon3 = LoadClass<ACharacter>(nullptr, *Dragon3ActorClassPath);
+	SpawnInterval = 3.0f;
+	MinSpawnInterval = 0.2f;
+	SpawnIntervalDecreaseRate = 0.04f;
+
+	Enemy1_Dragon3 = LoadClass<ACharacter>(nullptr, *Dragon3ActorClassPath);
+	Enemy2_BabyDragon = LoadClass<ACharacter>(nullptr, *BabyDragonActorClassPath);
+	Enemy3_GoldDragon = LoadClass<ACharacter>(nullptr, *GoldDragonActorClassPath);
+	Enemy4_MaxDragon3 = LoadClass<ACharacter>(nullptr, *MaxDragon3ActorClassPath);
+
 	EnemySpawnDelegate.BindUFunction(this, FName("SpawnEnemy"));
+
+	//게임 플레이 타이머 설정
+	TimerDuration = 30.0f;
+	CurrentTime = TimerDuration;
 }
 
 // Called when the game starts or when spawned
@@ -242,6 +257,9 @@ void APlayerCharacter::BeginPlay()
 	//SpawnRotator = FRotator(rand(), rand(), rand());
 	//SpawnEnemy();
 	StartSpawnEnemy();
+	
+	//게임 플레이 타이머 시작
+	GetWorld()->GetTimerManager().SetTimer(GamePlayTimerHandle, this, &APlayerCharacter::UpdateTimer, 1.0f, true);
 	
 	////충돌 처리 (캡슐 컴포넌트)
 	//UCapsuleComponent* PlayerCapsuleComponent = GetCapsuleComponent();
@@ -350,29 +368,30 @@ void APlayerCharacter::ReturnToGame()
 	}
 }
 
+
 void APlayerCharacter::TopRightHUD_1()
 {
 	//TopRightHUDWidget 의 Update_1 커스텀 이벤트 호출
 	FOutputDeviceNull pAR;
-	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_1 %f"), SkillLevel_1), pAR, nullptr, true);
+	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_1 %d"), SkillLevel_1), pAR, nullptr, true);
 	//업데이트 안됨
 }
 void APlayerCharacter::TopRightHUD_2()
 {
 	FOutputDeviceNull pAR;
-	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_2 %f"), SkillLevel_2), pAR, nullptr, true);
+	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_2 %d"), SkillLevel_2), pAR, nullptr, true);
 }
 
 void APlayerCharacter::TopRightHUD_3()
 {
 	FOutputDeviceNull pAR;
-	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_3 %f"), SkillLevel_3), pAR, nullptr, true);
+	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_3 %d"), SkillLevel_3), pAR, nullptr, true);
 }
 
 void APlayerCharacter::TopRightHUD_4()
 {
 	FOutputDeviceNull pAR;
-	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_4 %f"), SkillLevel_4), pAR, nullptr, true);
+	TopRightHUDWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("Update_4 %d"), SkillLevel_4), pAR, nullptr, true);
 }
 
 void APlayerCharacter::Skill_1() //스킬1 출력 관리
@@ -719,25 +738,53 @@ void APlayerCharacter::SpawnEnemy()
 	//SpawnRotation = FRotator(rand(), rand(), rand());
 	SelectRandomSpawnLocation();
 	UWorld* World = GetWorld();
-	if (Enemy_Dragon3)
+
+	if (SpawnInterval > MinSpawnInterval)
+		SpawnInterval -= SpawnIntervalDecreaseRate;
+
+	
+
+	//GetWorld()->GetTimerManager().SetTimer(EnemySpawnTimerHandle, EnemySpawnDelegate, SpawnInterval, true);
+
+	if (Enemy1_Dragon3&& Enemy3_GoldDragon&& Enemy2_BabyDragon&& Enemy4_MaxDragon3)
 	{
 		
 		if (World)
 		{
+			int rand = FMath::RandRange(1, 100);
 			FActorSpawnParameters SpawnParams;
-			SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy_Dragon3, SpawnLocation, SpawnRotation, SpawnParams);//스폰 확인
+
+			if(rand < 7)
+				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy3_GoldDragon, SpawnLocation, SpawnRotation, SpawnParams);
+			else if(rand < 30)
+				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy2_BabyDragon, SpawnLocation, SpawnRotation, SpawnParams);
+			else if(rand < 50)
+				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy4_MaxDragon3, SpawnLocation, SpawnRotation, SpawnParams);
+			else
+				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy1_Dragon3, SpawnLocation, SpawnRotation, SpawnParams);//스폰 확인
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Enemy_Dragon3 class is not valid"));
+		UE_LOG(LogTemp, Warning, TEXT("Enemy1_Dragon3 class is not valid"));
 	}
+	UE_LOG(LogTemp, Warning, TEXT("SpawnInterval : %f"), SpawnInterval);
+	GetWorld()->GetTimerManager().SetTimer(EnemySpawnTimerHandle, this, &APlayerCharacter::SpawnEnemy, SpawnInterval, true);
 }
 
 void APlayerCharacter::StartSpawnEnemy()
 {
-	
-	GetWorld()->GetTimerManager().SetTimer(EnemySpawnTimerHandle, EnemySpawnDelegate, 3.0f, true, 2.0f);
+	//SpawnInterval = 3.0f;
+	//MinSpawnInterval = 0.3f;
+	//SpawnIntervalDecreaseRate = 0.01f;
+
+	//if (SpawnInterval > MinSpawnInterval)
+	//	SpawnInterval -= SpawnIntervalDecreaseRate;
+
+	//UE_LOG(LogTemp, Warning, TEXT("SpawnInterval : %f"), SpawnInterval);
+	float InitialSpawnDelay = 1.0f;
+
+	GetWorld()->GetTimerManager().SetTimer(EnemySpawnTimerHandle, this, &APlayerCharacter::SpawnEnemy, InitialSpawnDelay, false);
 }
 
 void APlayerCharacter::SelectRandomSpawnLocation()
@@ -752,23 +799,82 @@ void APlayerCharacter::SelectRandomSpawnLocation()
 
 	switch (randNum)
 	{
-	case 1:
+	case 1: // 상단
 		SpawnLocation = FVector(3230.0f, FMath::FRandRange(0.0f,7600.0f)-3800.0f, 0.0f);
 		//SpawnLocation = FVector(300.0f, 300.0f, 0.0f);
 		break;
-	case 2:
-		SpawnLocation = FVector(-3790.0f, FMath::FRandRange(0.0f, 7600.0f) - 3800.0f, 0.0f);
+	case 2: // 하단
+		SpawnLocation = FVector(-3770.0f, FMath::FRandRange(0.0f, 7600.0f) - 3800.0f, 0.0f);
 		//SpawnLocation = FVector(-300.0f, -300.0f, 0.0f);
 		break;
-	case 3:
+	case 3: // 우측 
 		SpawnLocation = FVector(FMath::FRandRange(0.0f, 7200.0f) - 3600.0f, 3880.0f, 0.0f);
 		//SpawnLocation = FVector(-300.0f, 300.0f, 0.0f);
 		break;
-	case 4:
+	case 4: // 좌측
 		SpawnLocation = FVector(FMath::FRandRange(0.0f, 7200.0f) - 3600.0f, -3920.0f, 0.0f);
 		//SpawnLocation = FVector(300.0f, -300.0f, 0.0f);
 		break;
 	}
+}
+
+void APlayerCharacter::UpdateTimer()
+{
+	CurrentTime -= 1.0f;
+	FOutputDeviceNull pAR;
+	UE_LOG(LogTemp, Log, TEXT("Time Left: %f"), CurrentTime);
+	PlayerWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("UpdateGamePlayTimer %f"), CurrentTime), pAR, nullptr, true);
+	if (CurrentTime <= 0.0f)
+	{
+		// 타이머 종료
+		GetWorld()->GetTimerManager().ClearTimer(GamePlayTimerHandle);
+		GamePlayTimerHandle.Invalidate();
+		OnTimerEnd();
+	}
+}
+
+void APlayerCharacter::OnTimerEnd()
+{
+	UE_LOG(LogTemp, Log, TEXT("Timer Ended. Stage/Wave Completed."));
+	FOutputDeviceNull pAR;
+	//PlayerWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("GamePlayTimerEnd")), pAR, nullptr, true);
+	CalculatePlayerScore();
+
+	if (GetWorld() != nullptr && GetWorld()->GetGameViewport() != nullptr)
+	{
+		UGameplayStatics::SetGamePaused(GetWorld(), true); // 퍼즈 기능 작동
+		UE_LOG(LogTemp, Warning, TEXT("GamePause"));
+		StageClearWidget->SetVisibility(ESlateVisibility::Visible); // StageClearWidget 위젯 블루프린트의 비저빌리티를 보이도록 변경
+		
+		PlayerWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("CalculatePlayerScore %d"), PlayerScore), pAR, nullptr, true);// UpdatePlayerScore 함수 호출
+		UE_LOG(LogTemp, Warning, TEXT("Player Score %d"),PlayerScore);
+		if (APlayerController* PlayerController = Cast<APlayerController>(GetController())) //마우스 커서 활성화
+		{
+			if (PlayerController != nullptr)
+			{
+				// 마우스 커서의 가시성 True로 설정
+				PlayerController->bShowMouseCursor = true;
+			}
+		}
+
+	}
+}
+
+void APlayerCharacter::ResetTimer()
+{
+	GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
+	GetWorld()->GetTimerManager().ClearTimer(TimerHandle2);
+	GetWorld()->GetTimerManager().ClearTimer(TimerHandle3);
+	GetWorld()->GetTimerManager().ClearTimer(EnemySpawnTimerHandle);
+	TimerHandle.Invalidate();
+	TimerHandle2.Invalidate();
+	TimerHandle3.Invalidate();
+	EnemySpawnTimerHandle.Invalidate();
+}
+
+void APlayerCharacter::CalculatePlayerScore()
+{
+	PlayerScore = (SkillLevel_1 + SkillLevel_2 + SkillLevel_3) * 200 - (PlayerMaxHealth - PlayerHealth) * 100; //3000 만점
 }
 
 // Called every frame
@@ -814,7 +920,6 @@ void APlayerCharacter::GetHurtAndUpdateHealth(float DamageAmount)
 	if (PlayerHealth <= 0) //플레이어 사망 시
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Player Dead!"));
-
 		if (GetWorld() != nullptr && GetWorld()->GetGameViewport() != nullptr)
 		{
 			UGameplayStatics::SetGamePaused(GetWorld(), true); // 퍼즈 기능 작동
