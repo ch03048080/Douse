@@ -220,7 +220,7 @@ protected:
 public:
 	//캐릭터 스킬 레벨
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Experience")
-	int SkillLevel_1 = 1; //SpellLevelFire
+	int SkillLevel_1 = -1; //SpellLevelFire
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Experience")
 	int SkillLevel_2 = 0; //SpellLevelIce

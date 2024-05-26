@@ -32,7 +32,7 @@ APlayerCharacter::APlayerCharacter()
 	//카메라
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));   //스프링 암 컴포넌트 달아줌
 	CameraBoom->SetupAttachment(GetRootComponent());							    //루트 컴포넌트 아래로 달아줌
-	CameraBoom->TargetArmLength = 1600.f;										    //타겟 암 길이 조정
+	CameraBoom->TargetArmLength = 1000.f;										    //타겟 암 길이 조정
 	CameraBoom->SetWorldRotation(FRotator(-50.f, 0.f, 0.f));
 	// 스프링 암의 회전 프로퍼티를 월드로 변경
 	CameraBoom->bInheritPitch = false;
@@ -43,7 +43,7 @@ APlayerCharacter::APlayerCharacter()
 
 	ViewCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ViewCamera"));		//카메라 컴포넌트 달아줌
 	ViewCamera->SetupAttachment(CameraBoom);									    //카메라를 스프링 암에 달아줌
-	//ViewCamera->bUsePawnControlRotation = false;									// 스프링 암의 회전만 사용합니다.
+	//ViewCamera->bUsePawnControlRotation = false;									// 스프링 암의 회전만 사용
 
 	//플레이어 최대 체력 설정
 	PlayerMaxHealth = 50.0f;
@@ -123,7 +123,7 @@ APlayerCharacter::APlayerCharacter()
 	CrosshairMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CrosshairMesh"));
 	// 루트 컴포넌트에 붙이기
 	CrosshairMesh->SetupAttachment(RootComponent);
-	CrosshairMesh->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+	CrosshairMesh->SetCollisionProfileName(TEXT("NoCollision")); //OverlapAllDynamic
 
 	//기본 스킬 피봇
 	SkillPivot = CreateDefaultSubobject<USceneComponent>(TEXT("SkillPivot"));
@@ -201,7 +201,7 @@ APlayerCharacter::APlayerCharacter()
 	TimelineFinishedEvent.BindUFunction(this, "OnRotationComplete");
 		
 	
-	// CurveFloat를 로드합니다.
+	// CurveFloat를 로드
 	static ConstructorHelpers::FObjectFinder<UCurveFloat> Curve(TEXT("/Game/Convert/Skill/Skill3Curve.Skill3Curve"));
 	if (Curve.Succeeded())
 	{
@@ -222,7 +222,7 @@ APlayerCharacter::APlayerCharacter()
 	EnemySpawnDelegate.BindUFunction(this, FName("SpawnEnemy"));
 
 	//게임 플레이 타이머 설정
-	TimerDuration = 30.0f;
+	TimerDuration = 300.0f;
 	CurrentTime = TimerDuration;
 }
 
@@ -236,6 +236,8 @@ void APlayerCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+
+
 	Skill3PivotComponent = PlayerCapsuleComponent->GetChildComponent(0);
 	StartSkill1Timer();
 
@@ -724,6 +726,7 @@ void APlayerCharacter::RotateMeshTowardsCursor()
 		{
 			// CrosshairMesh의 위치를 변경
 			CrosshairMesh->SetRelativeLocation(GetTransform().InverseTransformPosition(HitResult.Location));
+			
 			//CrosshairMesh->SetWorldLocation(HitResult.Location);// Sphere 메쉬의 위치를 마우스 커서 아래의 충돌 지점으로 설정
 			//UE_LOG(LogTemp, Warning, TEXT("Crosshair Location !"));
 		}
@@ -754,11 +757,11 @@ void APlayerCharacter::SpawnEnemy()
 			int rand = FMath::RandRange(1, 100);
 			FActorSpawnParameters SpawnParams;
 
-			if(rand < 7)
+			if(rand < 6)
 				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy3_GoldDragon, SpawnLocation, SpawnRotation, SpawnParams);
-			else if(rand < 30)
+			else if(rand < 31)
 				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy2_BabyDragon, SpawnLocation, SpawnRotation, SpawnParams);
-			else if(rand < 50)
+			else if(rand < 51)
 				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy4_MaxDragon3, SpawnLocation, SpawnRotation, SpawnParams);
 			else
 				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy1_Dragon3, SpawnLocation, SpawnRotation, SpawnParams);//스폰 확인
