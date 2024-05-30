@@ -32,7 +32,7 @@ APlayerCharacter::APlayerCharacter()
 	//카메라
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));   //스프링 암 컴포넌트 달아줌
 	CameraBoom->SetupAttachment(GetRootComponent());							    //루트 컴포넌트 아래로 달아줌
-	CameraBoom->TargetArmLength = 1000.f;										    //타겟 암 길이 조정
+	CameraBoom->TargetArmLength = 1300.f;										    //타겟 암 길이 조정
 	CameraBoom->SetWorldRotation(FRotator(-50.f, 0.f, 0.f));
 	// 스프링 암의 회전 프로퍼티를 월드로 변경
 	CameraBoom->bInheritPitch = false;
@@ -222,7 +222,7 @@ APlayerCharacter::APlayerCharacter()
 	EnemySpawnDelegate.BindUFunction(this, FName("SpawnEnemy"));
 
 	//게임 플레이 타이머 설정
-	TimerDuration = 300.0f;
+	TimerDuration = 180.0f;
 	CurrentTime = TimerDuration;
 }
 
@@ -499,14 +499,14 @@ void APlayerCharacter::StartSkill2Timer() //델리게이트를 사용하여 스킬 2 타이머 
 
 void APlayerCharacter::SpawnSkill_1(int NumProjectile, float StartRotation, float RotIncrement)
 {
-	USceneComponent* Skill1PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트를 가져옵니다.
-	USceneComponent* Skill1SpawnComponent = PlayerCapsuleComponent->GetChildComponent(1); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
-	FQuat NewRotationQuat(FRotator(0.f, StartRotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
-	FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f));//스킬 레벨 업 시 출력되는 스킬의 각도를 조절하려고 Add Rotation 하기 위한 FQuat
+	USceneComponent* Skill1PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트 가져옴
+	USceneComponent* Skill1SpawnComponent = PlayerCapsuleComponent->GetChildComponent(1); // 캡슐 컴포넌트의 두 번째 자식 컴포넌트 가져옴
+	FQuat NewRotationQuat(FRotator(0.f, StartRotation, 0.f)); //함수 호출 시 설정한 Rot 값을 적용하여 설정
+	FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f)); //스킬 레벨 업 시 출력되는 스킬의 각도를 조절하려고 Add Rotation 하기 위한 FQuat
 
 	if (Skill1PivotComponent != nullptr)
 	{
-		Skill1PivotComponent->SetRelativeRotation(NewRotationQuat); //스킬 여러개 출력되는 기능 구현 전에는 의미가 없음?
+		Skill1PivotComponent->SetRelativeRotation(NewRotationQuat); //스킬 여러개 출력 기능 구현 전에는 의미가 없는 것으로 확인
 
 		if (Skill1SpawnComponent != nullptr)
 		{
@@ -546,8 +546,8 @@ void APlayerCharacter::SpawnSkill_2(int NumProjectile, float StartRotation, floa
 {
 	USceneComponent* Skill2PivotComponent = PlayerCapsuleComponent->GetChildComponent(0); // 캡슐 컴포넌트의 첫 번째 자식 컴포넌트를 가져옵니다.
 	USceneComponent* Skill2SpawnComponent = PlayerCapsuleComponent->GetChildComponent(1); // FireBallPivot 컴포넌트 하위의 FireBall Spawn 컴포넌트 받아오기
-	FQuat NewRotationQuat(FRotator(0.f, StartRotation, 0.f));//함수 호출 시 설정한 Rot 값을 적용하여 설정
-	FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f));//스킬 레벨 업 시 출력되는 스킬의 각도를 조절하려고 Add Rotation 하기 위한 FQuat
+	FQuat NewRotationQuat(FRotator(0.f, StartRotation, 0.f)); //함수 호출 시 설정한 Rot 값을 적용하여 설정
+	FQuat LevelUpRotationQuat(FRotator(0.f, RotIncrement, 0.f)); //스킬 레벨 업 시 출력되는 스킬의 각도를 조절하려고 Add Rotation 하기 위한 FQuat
 
 	if (Skill2PivotComponent != nullptr)
 	{
@@ -557,9 +557,9 @@ void APlayerCharacter::SpawnSkill_2(int NumProjectile, float StartRotation, floa
 		{
 			FVector SpawnTransformLocation = SkillPivot->GetComponentLocation();
 			FRotator SpawnTransformRotation = SkillPivot->GetComponentRotation();
-			//SpawnTransformRotation.Yaw += 90.0f; //스킬 출력 방향이 캐릭터의 왼쪽 팔에서 나오는 문제 수정...
+			// SpawnTransformRotation.Yaw += 90.0f; //스킬 출력 방향이 캐릭터의 왼쪽 팔에서 나오는 문제 수정...
 
-			FString Skill2ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Ice.Spell_Ice_C"; //Skill2 의 액터 클래스 경로 설정
+			FString Skill2ActorClassPath = "/Game/Blueprints/Player/Spells/Spell_Ice.Spell_Ice_C"; // Skill2 의 액터 클래스 경로 설정
 
 			UClass* Skill2ActorClass = LoadClass<AActor>(nullptr, *Skill2ActorClassPath);
 
@@ -568,7 +568,7 @@ void APlayerCharacter::SpawnSkill_2(int NumProjectile, float StartRotation, floa
 				UE_LOG(LogTemp, Warning, TEXT("Skill 2 Level : %d"), SkillLevel_1);
 				UE_LOG(LogTemp, Warning, TEXT("2 , Num of Projectile : %d"), NumProjectile);
 				UE_LOG(LogTemp, Warning, TEXT("2, Increase Rot : %f"), RotIncrement);
-				//Skill2PivotComponent->AddRelativeRotation(LevelUpRotationQuat);
+				// Skill2PivotComponent->AddRelativeRotation(LevelUpRotationQuat);
 				FRotator SpawnedRotation = SpawnTransformRotation + FRotator(0.0f, RotIncrement * i + StartRotation, 0.0f);
 				AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Skill2ActorClass, SpawnTransformLocation, SpawnedRotation);
 			}
@@ -759,9 +759,9 @@ void APlayerCharacter::SpawnEnemy()
 
 			if(rand < 6)
 				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy3_GoldDragon, SpawnLocation, SpawnRotation, SpawnParams);
-			else if(rand < 31)
+			else if(rand < 26)
 				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy2_BabyDragon, SpawnLocation, SpawnRotation, SpawnParams);
-			else if(rand < 51)
+			else if(rand < 46)
 				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy4_MaxDragon3, SpawnLocation, SpawnRotation, SpawnParams);
 			else
 				SpawnedEnemy = World->SpawnActor<ACharacter>(Enemy1_Dragon3, SpawnLocation, SpawnRotation, SpawnParams);//스폰 확인
@@ -880,6 +880,18 @@ void APlayerCharacter::CalculatePlayerScore()
 	PlayerScore = (SkillLevel_1 + SkillLevel_2 + SkillLevel_3) * 200 - (PlayerMaxHealth - PlayerHealth) * 100; //3000 만점
 }
 
+void APlayerCharacter::PlayerHealthRecovery()
+{
+	FOutputDeviceNull pAR;
+	PlayerHealth += 10.0f;
+	if (PlayerHealth > PlayerMaxHealth)
+		PlayerHealth = PlayerMaxHealth;
+	PlayerHealthPercentage = PlayerHealth / PlayerMaxHealth;;
+	PlayerWidget->CallFunctionByNameWithArguments(*FString::Printf(TEXT("UpdateHealthPercentage %f"), PlayerHealthPercentage), pAR, nullptr, true);
+	this->CallFunctionByNameWithArguments(*FString::Printf(TEXT("PlayerHealthRecoveryEffect")), pAR, nullptr, true);
+
+}
+
 // Called every frame
 void APlayerCharacter::Tick(float DeltaTime)
 {
@@ -909,7 +921,7 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 void APlayerCharacter::GetHurtAndUpdateHealth(float DamageAmount)
 {
 	PlayerHealth -= DamageAmount;
-	PlayerHealthPercentage = PlayerMaxHealth / PlayerHealth;
+	PlayerHealthPercentage = PlayerHealth / PlayerMaxHealth;
 
 	//PlayerWidgetClass->(HealthPercentage);
 	UE_LOG(LogTemp, Warning, TEXT("Player Hurt!"));

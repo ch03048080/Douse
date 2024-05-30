@@ -220,7 +220,7 @@ protected:
 public:
 	//캐릭터 스킬 레벨
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Experience")
-	int SkillLevel_1 = -1; //SpellLevelFire
+	int SkillLevel_1 = 1; //SpellLevelFire
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Experience")
 	int SkillLevel_2 = 0; //SpellLevelIce
@@ -254,7 +254,7 @@ public:
 	FString Dragon3ActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies.BPMaster_Enemies_C";
 
 	UClass* Enemy2_BabyDragon;
-	FString BabyDragonActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies_Child_Enemy2_BabyDragon.BPMaster_Enemies_Child_Enemy2_BabyDragon_C";
+	FString BabyDragonActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies_Child_Enemy2_Baby.BPMaster_Enemies_Child_Enemy2_Baby_C";
 
 	UClass* Enemy3_GoldDragon;
 	FString GoldDragonActorClassPath = "/Game/Blueprints/Enemies/BPMaster_Enemies_Child_Enemy3_GoldDragon.BPMaster_Enemies_Child_Enemy3_GoldDragon_C";
@@ -276,7 +276,7 @@ public:
 
 
 //게임 플레이 타이머 기능
-	float TimerDuration = 0.0f;
+	float TimerDuration = 100.0f;
 	float CurrentTime = 0.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "GamePlayTimer")
@@ -290,4 +290,8 @@ public:
 	//플레이어 스코어 계산 함수
 	int PlayerScore = 0;
 	void CalculatePlayerScore();
+
+	//플레이어 체력 회복 함수 (체력 회복 물약 먹었을 때)
+	UFUNCTION(BlueprintCallable, Category = "Item")
+	void PlayerHealthRecovery();
 };
